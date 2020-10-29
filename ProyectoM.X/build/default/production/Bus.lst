@@ -1,0 +1,1246 @@
+MPASM 5.68                           BUS.ASM   10-26-2020  18:42:24         PAGE  1
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00001 ; CONFIG1
+                      00002 ; __config 0xF8F1
+2007   38F1           00003  __CONFIG _CONFIG1, _FOSC_XT & _WDTE_OFF & _PWRTE_OFF & _MCLRE_ON & _CP_OFF & _CPD_OFF & _BOREN_OFF & _I
+                            ESO_OFF & _FCMEN_ON & _LVP_ON
+                      00004 ; CONFIG2
+                      00005 ; __config 0xFFFF
+2008   3FFF           00006  __CONFIG _CONFIG2, _BOR4V_BOR40V & _WRT_OFF
+                      00007     
+                      00008     
+                      00009     LIST p=16F887
+                      00010     INCLUDE <P16F887.INC>
+                      00001         LIST
+                      00002 
+                      00003 ;==========================================================================
+                      00004 ; Build date : May 15 2016
+                      00005 ;  MPASM PIC16F887 processor include
+                      00006 ; 
+                      00007 ;  (c) Copyright 1999-2016 Microchip Technology, All rights reserved
+                      00008 ;==========================================================================
+                      00009 
+                      00810         LIST
+                      00011 
+  00000000            00012 Boton_asc       EQU     0       ; Definimos Led como RB0
+  00000001            00013 Boton_dsc       EQU     1       ; Definimos Led como RB1
+  00000002            00014 Switch_activar  EQU     2       ; Definimos Led como RB2
+  00000003            00015 Boton_sub       EQU     3       ; Definimos Led como RB3
+  00000004            00016 Boton_baj       EQU     4       ; Definimos Led como RB4    
+  00000000            00017 flag_counter    EQU     0
+  00000001            00018 flag_counter_inc    EQU     1    
+  00000020            00019 Contador1       EQU 0x20
+  00000021            00020 Contador2       EQU 0x21
+  00000022            00021 DISP_COUNTER    EQU 0x22
+  00000023            00022 DISP_DEFAULT    EQU 0x23
+  00000024            00023 DISP_FREQ       EQU 0x24
+  0000002B            00024 STD_COUNTER     EQU 0x2B
+  0000002C            00025 NUMERO_PASAJEROS EQU 0x2C
+  0000002D            00026 UMBRAL_BAJO     EQU 0x2D
+  0000002E            00027 UMBRAL_MEDIO    EQU 0x2E
+  0000002F            00028 UMBRAL_ALTO     EQU 0x2F
+  00000030            00029 LIMITE_BAJO     EQU 0X30     
+  00000025            00030 Hundred EQU 0x25
+  00000026            00031 Tens    EQU 0x26
+  00000027            00032 Units   EQU 0x27        
+  00000028            00033 bin     EQU 0x28
+  00000029            00034 count8  EQU 0x29
+  0000002A            00035 temp    EQU 0x2A
+                      00036  
+                      00037     ORG 0x00 ; Inicio de programa
+0000   2???           00038     goto INIT
+                      00039  ;** Configurar el puerto**
+0001                  00040 INIT
+0001   1683           00041         bsf STATUS,RP0 ; Cambia al Banco 1
+0002   3000           00042         movlw 00h ; Configura los pines del puerto D ...
+MPASM 5.68                           BUS.ASM   10-26-2020  18:42:24         PAGE  2
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+0003   0088           00043         movwf TRISD ; ...como salidas.
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+0004   0085           00044         movwf TRISA ; ...como salidas.
+0005   301F           00045         movlw   b'00011111'        ; Cargamos b'00000111' en W
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+0006   0086           00046         movwf   TRISB           ; Cargamos W en TRISA, RA0 como entrada
+0007   30B8           00047         movlw   b'10111000'    ; RC7/RX entrada,
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+0008   0087           00048         movwf   TRISC          ; RC6/TX salida
+                      00049         
+0009   1703           00050         BSF STATUS,RP1 ; Accede a banco 3
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+000A   0188           00051         CLRF ANSEL  ; 
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+000B   0189           00052         CLRF ANSELH ;
+000C   1283           00053         BCF STATUS,RP0 ; Regresa a banco 0 RP0 = 0
+000D   1303           00054         BCF STATUS,RP1 ; Regresa a banco 0 RP1 = 0
+                      00055         
+000E   3000           00056         movlw 00h ; Configura nuestro registro w con 00h
+000F   0088           00057         movwf PORTD ; ...como salidas.
+0010   0085           00058         movwf PORTA ; ...como salidas.
+0011   0087           00059         movwf PORTC ; ...como salidas.
+0012   2???           00060         call  inicio_uart 
+0013   3004           00061         movlw 04h
+0014   00B0           00062         movwf LIMITE_BAJO
+0015   3020           00063         movlw 20h ; Configura nuestro registro w con 02h
+0016   00A4           00064         movwf DISP_FREQ
+0017   300C           00065         movlw 0Ch ; Configura nuestro registro w con 02h
+0018   00A3           00066         movwf DISP_DEFAULT
+0019   3000           00067         movlw 00h 
+001A   00A2           00068         movwf DISP_COUNTER
+001B   00AC           00069         movwf NUMERO_PASAJEROS
+001C   00A8           00070         MOVWF bin ; 0x20
+001D   2???           00071         CALL Binary2BCD ; tens = 3 unit = 2 
+001E   01AB           00072         CLRF STD_COUNTER
+001F   142B           00073         bsf     STD_COUNTER,flag_counter 
+0020                  00074 MAIN
+0020   1D06           00075         btfss PORTB,Switch_activar          ; Esta pulsado el Boton (RA0=1??)
+0021   2???           00076         GOTO RUN
+0022   2???           00077         GOTO SETTING
+0023                  00078 RUN
+0023   2???           00079         CALL DISP_UPDATE_UNIT ; 2
+0024   2???           00080         CALL DELAY_20MS
+0025   2???           00081         CALL DISP_UPDATE_TENS; 3
+0026   2???           00082         CALL DELAY_20MS
+Message[305]: Using default destination of 1 (file).
+0027   0BA4           00083         DECFSZ DISP_FREQ
+0028   2???           00084         GOTO MAIN
+0029   2???           00085         CALL UPDATE_BTN_ENTRAR
+002A   2???           00086         CALL UPDATE_BTN_SALIR
+002B   2???           00087         CALL CAPACIDAD_0_25
+002C   2???           00088         CALL CAPACIDAD_25_75
+MPASM 5.68                           BUS.ASM   10-26-2020  18:42:24         PAGE  3
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+002D   2???           00089         CALL CAPACIDAD_75_100
+002E   2???           00090         GOTO INIT_FREQ
+                      00091 
+002F                  00092 INIT_FREQ
+002F   082C           00093         MOVF NUMERO_PASAJEROS,0
+0030   00A8           00094         MOVWF bin ; 0x20
+0031   2???           00095         CALL Binary2BCD ; tens = 3 unit = 2 
+0032   3020           00096         movlw 20h ; Configura nuestro registro w con 02h
+0033   00A4           00097         movwf DISP_FREQ
+0034   2???           00098         call  SEND_DATA
+0035   2???           00099         GOTO MAIN
+                      00100         
+                      00101         
+0036   0826           00102 SEND_DATA movf Tens,0
+0037   3E30           00103           addlw 0x30
+0038   2???           00104           CALL TX_DATO1
+0039   0827           00105           movf Units,0
+003A   3E30           00106           addlw 0x30
+003B   2???           00107           CALL TX_DATO1
+003C   300A           00108           movlw 0x0A;numero \r
+003D   2???           00109           CALL TX_DATO1
+003E   300D           00110           movlw 0x0d;numero \n
+003F   2???           00111           CALL TX_DATO1
+0040   0008           00112           return  
+                      00113 
+                      00114 ;--------------------------------------------------------------------------
+                      00115 ; INITIALIZE COUNTER
+                      00116 ;--------------------------------------------------------------------------     
+                      00117 
+0041                  00118 INIT_COUNTER
+0041   0823           00119         movf DISP_DEFAULT,0 ; Muevo el valor por defecto al registro W
+0042   00A2           00120         movwf DISP_COUNTER  ; cargo el valor del registro W al Contador
+0043   0008           00121         RETURN
+                      00122 
+                      00123 ;**** R U T I N A * T E S T E O **************
+0044                  00124 SETTING
+0044   082C           00125         movf   NUMERO_PASAJEROS,0
+0045   0223           00126         subwf   DISP_DEFAULT,0
+0046   1D03           00127         btfss   STATUS,2
+0047   2???           00128         goto    CONTINUAR
+0048   2???           00129         goto    FLAG_COUNTER_INC_SET
+                      00130         
+0049                  00131 FLAG_COUNTER_INC_SET
+0049   10AB           00132         bcf     STD_COUNTER,flag_counter_inc
+004A   2???           00133         goto    CONTINUAR
+                      00134 
+004B                  00135 CONTINUAR       
+004B   2???           00136         CALL UPDATE_BTN_ASC
+004C   2???           00137         CALL UPDATE_BTN_DSC
+004D   2???           00138         CALL VERIFICAR_LIMITES
+004E   2???           00139         CALL INIT_COUNTER
+004F   0822           00140         MOVF DISP_COUNTER,0
+0050   00A8           00141         MOVWF bin ; 0x20
+MPASM 5.68                           BUS.ASM   10-26-2020  18:42:24         PAGE  4
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+0051   2???           00142         CALL Binary2BCD ; tens = 3 unit = 2
+0052   2???           00143         CALL DISP_UPDATE_UNIT ; 2
+0053   2???           00144         CALL DELAY_20MS
+0054   2???           00145         CALL DISP_UPDATE_TENS; 3
+0055   2???           00146         CALL DELAY_20MS
+                      00147         ;CLRF STD_COUNTER
+0056   2???           00148         CALL SETTING_UMBRAL
+0057   2???           00149         GOTO INIT_FREQ
+                      00150         
+0058                  00151 SETTING_UMBRAL
+0058   0823           00152         MOVF DISP_DEFAULT,0
+0059   00AD           00153         MOVWF UMBRAL_BAJO
+005A   0CAD           00154         RRF UMBRAL_BAJO,1
+005B   0CAD           00155         RRF UMBRAL_BAJO,1
+005C   00AE           00156         MOVWF UMBRAL_MEDIO
+005D   0CAE           00157         RRF   UMBRAL_MEDIO,1
+005E   082D           00158         MOVF  UMBRAL_BAJO,0
+005F   0223           00159         SUBWF DISP_DEFAULT,0
+0060   00AF           00160         MOVWF UMBRAL_ALTO
+0061   0008           00161         RETURN
+                      00162 
+0062                  00163 VERIFICAR_LIMITES
+0062   0823           00164           MOVF DISP_DEFAULT,0
+0063   0230           00165           SUBWF LIMITE_BAJO,0
+0064   1903           00166           BTFSC STATUS,2
+0065   2???           00167           GOTO SALIR4
+0066   2???           00168           CALL FIJAR_LIMITE
+                      00169           
+0067                  00170 FIJAR_LIMITE
+0067   1C03           00171           BTFSS STATUS,0
+0068   2???           00172           GOTO SALIR4
+0069   0830           00173           MOVF LIMITE_BAJO,0
+006A   00A3           00174           MOVWF DISP_DEFAULT
+006B   2???           00175           GOTO SALIR4     
+006C                  00176 SALIR4
+006C   0008           00177           RETURN        
+006D                  00178 CAPACIDAD_0_25
+                      00179         
+006D   082C           00180           MOVF NUMERO_PASAJEROS,0
+006E   022D           00181           SUBWF UMBRAL_BAJO,0
+006F   1903           00182           BTFSC STATUS,2
+0070   2???           00183           GOTO SALIR
+0071   2???           00184           CALL ENCENDER_LED_VERDE
+                      00185           
+0072                  00186 ENCENDER_LED_VERDE
+0072   1C03           00187           BTFSS STATUS,0
+0073   2???           00188           GOTO SALIR
+0074   1007           00189           BCF PORTC,0
+0075   1087           00190           BCF PORTC,1
+0076   1507           00191           BSF PORTC,2
+0077   2???           00192           GOTO SALIR      
+0078                  00193 SALIR
+0078   0008           00194           RETURN
+MPASM 5.68                           BUS.ASM   10-26-2020  18:42:24         PAGE  5
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00195           
+0079                  00196 CAPACIDAD_25_75
+0079   082C           00197           MOVF NUMERO_PASAJEROS,0
+007A   022D           00198           SUBWF UMBRAL_BAJO,0
+007B   1803           00199           BTFSC STATUS,0
+007C   2???           00200           GOTO SALIR2
+007D   2???           00201           CALL ENCENDER_LED_AMARILLO
+                      00202           
+007E                  00203 ENCENDER_LED_AMARILLO
+007E   1903           00204           BTFSC STATUS,2
+007F   2???           00205           GOTO SALIR2
+0080   1007           00206           BCF PORTC,0
+0081   1487           00207           BSF PORTC,1
+0082   1107           00208           BCF PORTC,2
+0083   2???           00209           GOTO SALIR2     
+0084                  00210 SALIR2
+0084   0008           00211           RETURN
+                      00212           
+0085                  00213 CAPACIDAD_75_100
+0085   082C           00214           MOVF NUMERO_PASAJEROS,0
+0086   022F           00215           SUBWF UMBRAL_ALTO,0
+0087   1803           00216           BTFSC STATUS,0
+0088   2???           00217           GOTO SALIR3
+0089   2???           00218           CALL ENCENDER_LED_ROJO
+                      00219           
+008A                  00220 ENCENDER_LED_ROJO
+008A   1903           00221           BTFSC STATUS,2
+008B   2???           00222           GOTO SALIR3
+008C   1407           00223           BSF PORTC,0
+008D   1087           00224           BCF PORTC,1
+008E   1107           00225           BCF PORTC,2
+008F   2???           00226           GOTO SALIR3     
+0090                  00227 SALIR3
+0090   0008           00228           RETURN
+                      00229 
+                      00230           
+0091                  00231 UPDATE_BTN_ASC
+0091   1C06           00232         btfss   PORTB,Boton_asc     ; Esta pulsado el Boton (RA0=1??)
+0092   2???           00233         goto    END_BTN_ASC         ; No??, seguimos testeando
+0093   2???           00234         call    DELAY_20MS        ; Si??, Eliminamos efecto rebote
+0094   1C06           00235         btfss   PORTB,Boton_asc     ; Testeamos nuevamente
+0095   2???           00236         goto    END_BTN_ASC         ; Falsa Alarma, seguimos testeando
+0096   0AA3           00237         incf    DISP_DEFAULT,1   ; Se ha pulsado, incrementamos Valor Default
+0097                  00238 RELEASE_BTN_ASC
+0097   1806           00239         btfsc   PORTB,Boton_asc         ; Boton se dejo de pulsar??
+0098   2???           00240         goto    RELEASE_BTN_ASC     ; No??, PCL - 1, --> btfsc PORTA,Boton
+0099   2???           00241         call    DELAY_20MS              ; Si??, Eliminamos efecto rebote
+009A   1806           00242         btfsc   PORTB,Boton_asc         ; Testeamos nuevamente si se dejo de pulsar
+009B   2???           00243         goto    RELEASE_BTN_ASC                ; No??, Falsa alarma, volvemos a checar
+009C   2???           00244         goto    END_BTN_ASC         ; Falsa Alarma, seguimos testeando
+                      00245         
+009D                  00246 END_BTN_ASC
+009D   0008           00247         RETURN
+MPASM 5.68                           BUS.ASM   10-26-2020  18:42:24         PAGE  6
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00248 
+009E                  00249 UPDATE_BTN_DSC
+009E   1C86           00250         btfss   PORTB,Boton_dsc     ; Esta pulsado el Boton (RA0=1??)
+009F   2???           00251         goto    END_BTN_DSC         ; No??, seguimos testeando
+00A0   2???           00252         call    DELAY_20MS        ; Si??, Eliminamos efecto rebote
+00A1   1C86           00253         btfss   PORTB,Boton_dsc     ; Testeamos nuevamente
+00A2   2???           00254         goto    END_BTN_DSC         ; Falsa Alarma, seguimos testeando
+00A3   03A3           00255         decf    DISP_DEFAULT,1   ; Se ha pulsado, incrementamos Valor Default
+00A4                  00256 RELEASE_BTN_DSC
+00A4   1886           00257         btfsc   PORTB,Boton_dsc         ; Boton se dejo de pulsar??
+00A5   2???           00258         goto    RELEASE_BTN_DSC     ; No??, PCL - 1, --> btfsc PORTA,Boton
+00A6   2???           00259         call    DELAY_20MS              ; Si??, Eliminamos efecto rebote
+00A7   1886           00260         btfsc   PORTB,Boton_dsc         ; Testeamos nuevamente si se dejo de pulsar
+00A8   2???           00261         goto    RELEASE_BTN_DSC                ; No??, Falsa alarma, volvemos a checar
+00A9   2???           00262         goto    END_BTN_DSC         ; Falsa Alarma, seguimos testeando
+                      00263 
+00AA                  00264 END_BTN_DSC
+00AA   0008           00265         RETURN
+                      00266 
+00AB                  00267 UPDATE_BTN_SALIR
+00AB   1E06           00268         btfss   PORTB,Boton_baj     ; Esta pulsado el Boton (RA0=1??)
+00AC   2???           00269         goto    END_BTN_SALIR       ; No??, seguimos testeando
+00AD   2???           00270         call    DELAY_20MS        ; Si??, Eliminamos efecto rebote
+00AE   1E06           00271         btfss   PORTB,Boton_baj     ; Testeamos nuevamente
+00AF   2???           00272         goto    END_BTN_SALIR       ; Falsa Alarma, seguimos testeando
+00B0   1C2B           00273         btfss   STD_COUNTER,flag_counter
+00B1   2???           00274         goto    DEC_COUNTER
+00B2   2???           00275         goto    RELEASE_BTN_SALIR
+00B3                  00276 DEC_COUNTER     
+00B3   03AC           00277         decf    NUMERO_PASAJEROS,1  ; Se ha pulsado, incrementamos Valor Default
+00B4   10AB           00278         bcf     STD_COUNTER,flag_counter_inc
+00B5   1D03           00279         btfss   STATUS, 2
+00B6   2???           00280         goto    RELEASE_BTN_SALIR
+00B7   2???           00281         goto    FLAG_COUNTER
+                      00282         
+00B8                  00283 RELEASE_BTN_SALIR
+00B8   1A06           00284         btfsc   PORTB,Boton_baj         ; Boton se dejo de pulsar??
+00B9   2???           00285         goto    RELEASE_BTN_SALIR           ; No??, PCL - 1, --> btfsc PORTA,Boton
+00BA   2???           00286         call    DELAY_20MS              ; Si??, Eliminamos efecto rebote
+00BB   1A06           00287         btfsc   PORTB,Boton_baj         ; Testeamos nuevamente si se dejo de pulsar
+00BC   2???           00288         goto    RELEASE_BTN_SALIR                ; No??, Falsa alarma, volvemos a checar
+00BD   2???           00289         goto    END_BTN_SALIR       ; Falsa Alarma, seguimos testeando
+                      00290 
+00BE                  00291 FLAG_COUNTER
+00BE   142B           00292         bsf     STD_COUNTER,flag_counter
+00BF   2???           00293         goto    RELEASE_BTN_SALIR
+00C0                  00294 END_BTN_SALIR
+00C0   0008           00295         RETURN
+                      00296         
+00C1                  00297 UPDATE_BTN_ENTRAR
+00C1   1D86           00298         btfss   PORTB,Boton_sub     ; Esta pulsado el Boton (RA0=1??)
+00C2   2???           00299         goto    END_BTN_ENTRAR      ; No??, seguimos testeando
+00C3   2???           00300         call    DELAY_20MS        ; Si??, Eliminamos efecto rebote
+MPASM 5.68                           BUS.ASM   10-26-2020  18:42:24         PAGE  7
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+00C4   1D86           00301         btfss   PORTB,Boton_sub     ; Testeamos nuevamente
+00C5   2???           00302         goto    END_BTN_ENTRAR      ; Falsa Alarma, seguimos testeando
+00C6   1CAB           00303         btfss   STD_COUNTER,flag_counter_inc
+00C7   2???           00304         goto    INC_COUNTER
+00C8   2???           00305         goto    RELEASE_BTN_ENTRAR
+                      00306         
+00C9                  00307 INC_COUNTER     
+00C9   0AAC           00308         incf    NUMERO_PASAJEROS,1   ; Se ha pulsado, incrementamos Valor Default
+00CA   102B           00309         bcf     STD_COUNTER,flag_counter
+00CB   082C           00310         movf   NUMERO_PASAJEROS,0
+00CC   0223           00311         subwf   DISP_DEFAULT,0
+00CD   1D03           00312         btfss   STATUS,2
+00CE   2???           00313         goto    RELEASE_BTN_ENTRAR
+00CF   2???           00314         goto    FLAG_COUNTER_INC
+                      00315         
+00D0                  00316 FLAG_COUNTER_INC
+00D0   14AB           00317         bsf     STD_COUNTER,flag_counter_inc
+00D1   2???           00318         goto    RELEASE_BTN_ENTRAR
+00D2                  00319 RELEASE_BTN_ENTRAR
+00D2   1986           00320         btfsc   PORTB,Boton_sub         ; Boton se dejo de pulsar??
+00D3   2???           00321         goto    RELEASE_BTN_ENTRAR          ; No??, PCL - 1, --> btfsc PORTA,Boton
+00D4   2???           00322         call    DELAY_20MS              ; Si??, Eliminamos efecto rebote
+00D5   1986           00323         btfsc   PORTB,Boton_sub         ; Testeamos nuevamente si se dejo de pulsar
+00D6   2???           00324         goto    RELEASE_BTN_ENTRAR                ; No??, Falsa alarma, volvemos a checar
+00D7   2???           00325         goto    END_BTN_ENTRAR      ; Falsa Alarma, seguimos testeando
+                      00326         
+00D8                  00327 END_BTN_ENTRAR
+00D8   0008           00328         RETURN  
+                      00329 
+                      00330 ;--------------------------------------------------------------------------
+                      00331 ; DISPLAY 7 SEGMENTS
+                      00332 ;--------------------------------------------------------------------------     
+00D9                  00333 DISP_UPDATE_UNIT
+00D9   1005           00334         BCF PORTA,0 ;TURN OFF DIGIT 2.
+00DA   0827           00335         MOVF Units,0
+00DB   2???           00336         CALL SEVENSEG_LOOKUP
+                      00337         ; para anodo comun complemento (1 -> 0, 0 -> 1)
+00DC   0088           00338         MOVWF PORTD ;PUT DATA ON PORTB.
+00DD   1485           00339         BSF PORTA,1 ;TURN ON DIGIT 1.
+00DE   0008           00340         RETURN
+                      00341         
+00DF                  00342 DISP_UPDATE_TENS
+00DF   1085           00343         BCF PORTA,1 ;TURN OFF DIGIT 1.
+00E0   0826           00344         MOVF Tens,0
+00E1   2???           00345         CALL SEVENSEG_LOOKUP
+                      00346         ;para anodo comun complemento (1 -> 0, 0 -> 1)
+00E2   0088           00347         MOVWF PORTD ;PUT DATA ON PORTB.
+00E3   1405           00348         BSF PORTA,0 ;TURN ON DIGIT 2.
+00E4   0008           00349         RETURN
+                      00350 ;--------------------------------------------------------------------------
+                      00351 ; NUMBERIC LOOKUP TABLE FOR 7 SEG
+                      00352 ;--------------------------------------------------------------------------
+00E5                  00353 SEVENSEG_LOOKUP 
+MPASM 5.68                           BUS.ASM   10-26-2020  18:42:24         PAGE  8
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+00E5   0782           00354         ADDWF PCL,f
+00E6   343F           00355         RETLW 3Fh ; //Hex value to display the number 0. 0x40
+00E7   3406           00356         RETLW 06h ; //Hex value to display the number 1. 0x79
+00E8   345B           00357         RETLW 5Bh ; //Hex value to display the number 2.
+00E9   344F           00358         RETLW 4Fh ; //Hex value to display the number 3.
+00EA   3466           00359         RETLW 66h ; //Hex value to display the number 4.
+00EB   346D           00360         RETLW 6Dh ; //Hex value to display the number 5.
+00EC   347D           00361         RETLW 7Dh ; //Hex value to display the number 6.
+00ED   3407           00362         RETLW 07h ; //Hex value to display the number 7.
+00EE   347F           00363         RETLW 7Fh ; //Hex value to display the number 8.
+00EF   346F           00364         RETLW 6Fh ; //Hex value to display the number 9.
+00F0   0008           00365         RETURN
+                      00366 ;--------------------------------------------------------------------------
+                      00367 ; DELAY 20 MILLISECONDS
+                      00368 ;--------------------------------------------------------------------------
+00F1                  00369 DELAY_20MS
+00F1   30FF           00370         movlw   0xFF                    ;
+00F2   00A0           00371         movwf   Contador1               ; Iniciamos contador1.-
+00F3                  00372 Repeticion1
+00F3   3019           00373         movlw   0x19                    ;
+00F4   00A1           00374         movwf   Contador2               ; Iniciamos contador2
+00F5                  00375 Repeticion2
+00F5   0BA1           00376         decfsz  Contador2,1             ; Decrementa Contador2 y si es 0 sale.-
+00F6   2???           00377         goto    Repeticion2             ; Si no es 0 repetimos ciclo.-
+00F7   0BA0           00378         decfsz  Contador1,1             ; Decrementa Contador1.-
+00F8   2???           00379         goto    Repeticion1             ; Si no es cero repetimos ciclo.-
+00F9   0008           00380         return                          ; Regresa de la subrutina.-
+                      00381 
+                      00382 ;--------------------------------------------------------------------------
+                      00383 ; CONVERTER BINARY TO BCD
+                      00384 ;--------------------------------------------------------------------------
+00FA                  00385 Binary2BCD
+00FA   01A5           00386         clrf            Hundred
+00FB   01A6           00387         clrf            Tens
+00FC   01A7           00388         clrf            Units
+00FD   3008           00389         movlw           0x08
+00FE   00A9           00390         movwf           count8
+                      00391         ; check if bin is zero  
+00FF   3000           00392         movlw           0x00
+0100   07A8           00393         addwf           bin, f
+0101   1903           00394         btfsc           STATUS, Z
+0102   2???           00395         goto            endBinary2BCD
+0103                  00396 startconversion 
+                      00397         ; rotate MSB from bin into Units
+0103   1003           00398         bcf             STATUS, C
+0104   0DA8           00399         rlf             bin, f
+0105   0DA7           00400         rlf             Units, f
+                      00401         ; check if a carry happened to 5th bit of Units 
+                      00402         ; helps to move the carry from nibble to a different byte
+0106   1E27           00403         btfss           Units, 0x04
+0107   2???           00404         goto            RotateZeroIntoTen
+0108   1403           00405         bsf             STATUS, C
+0109   0DA6           00406         rlf             Tens, f
+MPASM 5.68                           BUS.ASM   10-26-2020  18:42:24         PAGE  9
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+010A   2???           00407         goto            completeUnitCarry       
+010B                  00408 RotateZeroIntoTen
+010B   1003           00409         bcf             STATUS, C
+010C   0DA6           00410         rlf             Tens, f
+010D                  00411 completeUnitCarry       
+010D   1227           00412         bcf             Units, 0x04
+                      00413         ; check if a carry happend to the 5th bit of Tens
+                      00414         ; helps to move the carry from nibble to a different byte
+010E   1E26           00415         btfss           Tens, 0x04
+010F   2???           00416         goto            RotateZeroIntoHun
+0110   1403           00417         bsf             STATUS, C
+0111   0DA5           00418         rlf             Hundred, f
+0112   2???           00419         goto            completeTenCarry        
+0113                  00420 RotateZeroIntoHun
+0113   1003           00421         bcf             STATUS, C
+0114   0DA5           00422         rlf             Hundred, f
+0115                  00423 completeTenCarry        
+0115   1226           00424         bcf             Tens, 0x04
+0116   0BA9           00425         decfsz          count8,f
+0117   2???           00426         goto            continue
+0118   2???           00427         goto            endBinary2BCD
+0119                  00428 continue
+                      00429         ; check if you need to add 3 to Units if it is greater or equal to 5
+0119   0827           00430         movf            Units, w
+011A   00AA           00431         movwf           temp
+011B   3005           00432         movlw           0x05
+011C   02AA           00433         subwf           temp, f
+011D   1C03           00434         btfss           STATUS, C
+011E   2???           00435         goto            AfterAdding3
+011F   0827           00436         movf            Units, w
+0120   3E03           00437         addlw           0x03
+0121   00A7           00438         movwf           Units
+0122                  00439 AfterAdding3    
+                      00440         ; check if you need to add 3 to Tens if it is greater or equal to 5
+0122   0826           00441         movf            Tens, w
+0123   00AA           00442         movwf           temp
+0124   3005           00443         movlw           0x05
+0125   02AA           00444         subwf           temp, f
+0126   1C03           00445         btfss           STATUS, C
+0127   2???           00446         goto            AfterAdding_3
+0128   0826           00447         movf            Tens, w
+0129   3E03           00448         addlw           0x03
+012A   00A6           00449         movwf           Tens
+012B                  00450 AfterAdding_3   
+012B   2???           00451         goto            startconversion
+012C                  00452 endBinary2BCD   
+012C   0008           00453         return
+                      00454         
+                      00455 
+                      00456 
+                      00457 
+                      00458  ;Comienzo del programa principal
+012D                  00459 inicio_uart  
+MPASM 5.68                           BUS.ASM   10-26-2020  18:42:24         PAGE 10
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+012D   1683           00460           bsf     STATUS,RP0     ; Bank01
+012E   1303           00461           bcf     STATUS,RP1
+012F   3024           00462           movlw   b'00100100'    ; Configuración USART
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+0130   0098           00463           movwf   TXSTA          ; y activación de transmisión
+0131   3019           00464           movlw   .25            ; 9600 baudios
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+0132   0099           00465           movwf   SPBRG
+0133   1283           00466           bcf     STATUS,RP0     ; Bank00
+0134   3090           00467           movlw   b'10010000'    ; Configuración del USART para recepción continua
+0135   0098           00468           movwf   RCSTA          ; Puesta en ON
+0136   0008           00469           return
+                      00470 
+0137   120C           00471 TX_DATO1  bcf     PIR1,TXIF      ; Restaura el flag del transmisor
+0138   0099           00472           movwf   TXREG          ; Mueve el byte a transmitir al registro de transmision
+0139   1683           00473           bsf     STATUS,RP0     ; Bank01
+013A   1303           00474           bcf     STATUS,RP1
+                      00475 
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+013B   1C98           00476 TX_DAT_1  btfss   TXSTA,TRMT     ; ¿Byte transmitido?
+013C   2???           00477           goto    TX_DAT_1       ; No, esperar
+013D   1283           00478           bcf     STATUS,RP0     ; Si, vuelta a Bank00
+013E   0008           00479           return
+                      00480           
+                      00481         
+38F1 3FFF             00482         end
+MPASM 5.68                           BUS.ASM   10-26-2020  18:42:24         PAGE 11
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+ABDEN                             00000000
+ABDOVF                            00000007
+ACKDT                             00000005
+ACKEN                             00000004
+ACKSTAT                           00000006
+ADCON0                            0000001F
+ADCON1                            0000009F
+ADCS0                             00000006
+ADCS1                             00000007
+ADDEN                             00000003
+ADFM                              00000007
+ADIE                              00000006
+ADIF                              00000006
+ADON                              00000000
+ADRESH                            0000001E
+ADRESL                            0000009E
+ANS0                              00000000
+ANS1                              00000001
+ANS10                             00000002
+ANS11                             00000003
+ANS12                             00000004
+ANS13                             00000005
+ANS2                              00000002
+ANS3                              00000003
+ANS4                              00000004
+ANS5                              00000005
+ANS6                              00000006
+ANS7                              00000007
+ANS8                              00000000
+ANS9                              00000001
+ANSEL                             00000188
+ANSELH                            00000189
+AfterAdding3                      00000122
+AfterAdding_3                     0000012B
+BAUDCTL                           00000187
+BCLIE                             00000003
+BCLIF                             00000003
+BF                                00000000
+BRG0                              00000000
+BRG1                              00000001
+BRG10                             00000002
+BRG11                             00000003
+BRG12                             00000004
+BRG13                             00000005
+BRG14                             00000006
+BRG15                             00000007
+BRG16                             00000003
+BRG2                              00000002
+BRG3                              00000003
+BRG4                              00000004
+BRG5                              00000005
+BRG6                              00000006
+BRG7                              00000007
+MPASM 5.68                           BUS.ASM   10-26-2020  18:42:24         PAGE 12
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+BRG8                              00000000
+BRG9                              00000001
+BRGH                              00000002
+Binary2BCD                        000000FA
+Boton_asc                         00000000
+Boton_baj                         00000004
+Boton_dsc                         00000001
+Boton_sub                         00000003
+C                                 00000000
+C1CH0                             00000000
+C1CH1                             00000001
+C1IE                              00000005
+C1IF                              00000005
+C1OE                              00000005
+C1ON                              00000007
+C1OUT                             00000006
+C1POL                             00000004
+C1R                               00000002
+C1RSEL                            00000005
+C1SEN                             00000005
+C2CH0                             00000000
+C2CH1                             00000001
+C2IE                              00000006
+C2IF                              00000006
+C2OE                              00000005
+C2ON                              00000007
+C2OUT                             00000006
+C2POL                             00000004
+C2R                               00000002
+C2REN                             00000004
+C2RSEL                            00000004
+C2SYNC                            00000000
+CAPACIDAD_0_25                    0000006D
+CAPACIDAD_25_75                   00000079
+CAPACIDAD_75_100                  00000085
+CCP1CON                           00000017
+CCP1IE                            00000002
+CCP1IF                            00000002
+CCP1M0                            00000000
+CCP1M1                            00000001
+CCP1M2                            00000002
+CCP1M3                            00000003
+CCP1X                             00000005
+CCP1Y                             00000004
+CCP2CON                           0000001D
+CCP2IE                            00000000
+CCP2IF                            00000000
+CCP2M0                            00000000
+CCP2M1                            00000001
+CCP2M2                            00000002
+CCP2M3                            00000003
+CCP2X                             00000005
+CCP2Y                             00000004
+MPASM 5.68                           BUS.ASM   10-26-2020  18:42:24         PAGE 13
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+CCPR1                             00000015
+CCPR1H                            00000016
+CCPR1L                            00000015
+CCPR2                             0000001B
+CCPR2H                            0000001C
+CCPR2L                            0000001B
+CHS0                              00000002
+CHS1                              00000003
+CHS2                              00000004
+CHS3                              00000005
+CKE                               00000006
+CKP                               00000004
+CM1CON0                           00000107
+CM2CON0                           00000108
+CM2CON1                           00000109
+CONTINUAR                         0000004B
+CREN                              00000004
+CSRC                              00000007
+Contador1                         00000020
+Contador2                         00000021
+D                                 00000005
+DATA_ADDRESS                      00000005
+DC                                00000001
+DC1B0                             00000004
+DC1B1                             00000005
+DC2B0                             00000004
+DC2B1                             00000005
+DEC_COUNTER                       000000B3
+DELAY_20MS                        000000F1
+DISP_COUNTER                      00000022
+DISP_DEFAULT                      00000023
+DISP_FREQ                         00000024
+DISP_UPDATE_TENS                  000000DF
+DISP_UPDATE_UNIT                  000000D9
+D_A                               00000005
+D_NOT_A                           00000005
+ECCPAS                            0000009C
+ECCPAS0                           00000004
+ECCPAS1                           00000005
+ECCPAS2                           00000006
+ECCPASE                           00000007
+EEADR                             0000010D
+EEADRH                            0000010F
+EECON1                            0000018C
+EECON2                            0000018D
+EEDAT                             0000010C
+EEDATA                            0000010C
+EEDATH                            0000010E
+EEIE                              00000004
+EEIF                              00000004
+EEPGD                             00000007
+ENCENDER_LED_AMARILLO             0000007E
+ENCENDER_LED_ROJO                 0000008A
+MPASM 5.68                           BUS.ASM   10-26-2020  18:42:24         PAGE 14
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+ENCENDER_LED_VERDE                00000072
+END_BTN_ASC                       0000009D
+END_BTN_DSC                       000000AA
+END_BTN_ENTRAR                    000000D8
+END_BTN_SALIR                     000000C0
+F                                 00000001
+FERR                              00000002
+FIJAR_LIMITE                      00000067
+FLAG_COUNTER                      000000BE
+FLAG_COUNTER_INC                  000000D0
+FLAG_COUNTER_INC_SET              00000049
+FSR                               00000004
+FVREN                             00000000
+GCEN                              00000007
+GIE                               00000007
+GO                                00000001
+GO_DONE                           00000001
+GO_NOT_DONE                       00000001
+HTS                               00000002
+Hundred                           00000025
+I2C_DATA                          00000005
+I2C_READ                          00000002
+I2C_START                         00000003
+I2C_STOP                          00000004
+INC_COUNTER                       000000C9
+INDF                              00000000
+INIT                              00000001
+INIT_COUNTER                      00000041
+INIT_FREQ                         0000002F
+INTCON                            0000000B
+INTE                              00000004
+INTEDG                            00000006
+INTF                              00000001
+IOCB                              00000096
+IOCB0                             00000000
+IOCB1                             00000001
+IOCB2                             00000002
+IOCB3                             00000003
+IOCB4                             00000004
+IOCB5                             00000005
+IOCB6                             00000006
+IOCB7                             00000007
+IRCF0                             00000004
+IRCF1                             00000005
+IRCF2                             00000006
+IRP                               00000007
+LIMITE_BAJO                       00000030
+LTS                               00000001
+MAIN                              00000020
+MC1OUT                            00000007
+MC2OUT                            00000006
+MSK                               00000093
+MSK0                              00000000
+MPASM 5.68                           BUS.ASM   10-26-2020  18:42:24         PAGE 15
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+MSK1                              00000001
+MSK2                              00000002
+MSK3                              00000003
+MSK4                              00000004
+MSK5                              00000005
+MSK6                              00000006
+MSK7                              00000007
+NOT_A                             00000005
+NOT_ADDRESS                       00000005
+NOT_BO                            00000000
+NOT_BOR                           00000000
+NOT_DONE                          00000001
+NOT_PD                            00000003
+NOT_POR                           00000001
+NOT_RBPU                          00000007
+NOT_RC8                           00000006
+NOT_T1SYNC                        00000002
+NOT_TO                            00000004
+NOT_TX8                           00000006
+NOT_W                             00000002
+NOT_WRITE                         00000002
+NUMERO_PASAJEROS                  0000002C
+OERR                              00000001
+OPTION_REG                        00000081
+OSCCON                            0000008F
+OSCTUNE                           00000090
+OSFIE                             00000007
+OSFIF                             00000007
+OSTS                              00000003
+P                                 00000004
+P1M0                              00000006
+P1M1                              00000007
+PCL                               00000002
+PCLATH                            0000000A
+PCON                              0000008E
+PDC0                              00000000
+PDC1                              00000001
+PDC2                              00000002
+PDC3                              00000003
+PDC4                              00000004
+PDC5                              00000005
+PDC6                              00000006
+PEIE                              00000006
+PEN                               00000002
+PIE1                              0000008C
+PIE2                              0000008D
+PIR1                              0000000C
+PIR2                              0000000D
+PORTA                             00000005
+PORTB                             00000006
+PORTC                             00000007
+PORTD                             00000008
+PORTE                             00000009
+MPASM 5.68                           BUS.ASM   10-26-2020  18:42:24         PAGE 16
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+PR2                               00000092
+PRSEN                             00000007
+PS0                               00000000
+PS1                               00000001
+PS2                               00000002
+PSA                               00000003
+PSSAC0                            00000002
+PSSAC1                            00000003
+PSSBD0                            00000000
+PSSBD1                            00000001
+PSTRCON                           0000009D
+PULSR                             00000002
+PULSS                             00000003
+PWM1CON                           0000009B
+R                                 00000002
+RA0                               00000000
+RA1                               00000001
+RA2                               00000002
+RA3                               00000003
+RA4                               00000004
+RA5                               00000005
+RA6                               00000006
+RA7                               00000007
+RB0                               00000000
+RB1                               00000001
+RB2                               00000002
+RB3                               00000003
+RB4                               00000004
+RB5                               00000005
+RB6                               00000006
+RB7                               00000007
+RBIE                              00000003
+RBIF                              00000000
+RC0                               00000000
+RC1                               00000001
+RC2                               00000002
+RC3                               00000003
+RC4                               00000004
+RC5                               00000005
+RC6                               00000006
+RC7                               00000007
+RC8_9                             00000006
+RC9                               00000006
+RCD8                              00000000
+RCEN                              00000003
+RCIDL                             00000006
+RCIE                              00000005
+RCIF                              00000005
+RCREG                             0000001A
+RCSTA                             00000018
+RD                                00000000
+RD0                               00000000
+RD1                               00000001
+MPASM 5.68                           BUS.ASM   10-26-2020  18:42:24         PAGE 17
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+RD2                               00000002
+RD3                               00000003
+RD4                               00000004
+RD5                               00000005
+RD6                               00000006
+RD7                               00000007
+RE0                               00000000
+RE1                               00000001
+RE2                               00000002
+RE3                               00000003
+READ_WRITE                        00000002
+RELEASE_BTN_ASC                   00000097
+RELEASE_BTN_DSC                   000000A4
+RELEASE_BTN_ENTRAR                000000D2
+RELEASE_BTN_SALIR                 000000B8
+RP0                               00000005
+RP1                               00000006
+RSEN                              00000001
+RUN                               00000023
+RX9                               00000006
+RX9D                              00000000
+R_NOT_W                           00000002
+R_W                               00000002
+Repeticion1                       000000F3
+Repeticion2                       000000F5
+RotateZeroIntoHun                 00000113
+RotateZeroIntoTen                 0000010B
+S                                 00000003
+SALIR                             00000078
+SALIR2                            00000084
+SALIR3                            00000090
+SALIR4                            0000006C
+SBOREN                            00000004
+SCKP                              00000004
+SCS                               00000000
+SEN                               00000000
+SENDB                             00000003
+SEND_DATA                         00000036
+SETTING                           00000044
+SETTING_UMBRAL                    00000058
+SEVENSEG_LOOKUP                   000000E5
+SMP                               00000007
+SPBRG                             00000099
+SPBRGH                            0000009A
+SPEN                              00000007
+SR0                               00000006
+SR1                               00000007
+SRCON                             00000185
+SREN                              00000005
+SSPADD                            00000093
+SSPBUF                            00000013
+SSPCON                            00000014
+SSPCON2                           00000091
+MPASM 5.68                           BUS.ASM   10-26-2020  18:42:24         PAGE 18
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+SSPEN                             00000005
+SSPIE                             00000003
+SSPIF                             00000003
+SSPM0                             00000000
+SSPM1                             00000001
+SSPM2                             00000002
+SSPM3                             00000003
+SSPMSK                            00000093
+SSPOV                             00000006
+SSPSTAT                           00000094
+STATUS                            00000003
+STD_COUNTER                       0000002B
+STRA                              00000000
+STRB                              00000001
+STRC                              00000002
+STRD                              00000003
+STRSYNC                           00000004
+SWDTEN                            00000000
+SYNC                              00000004
+Switch_activar                    00000002
+T0CS                              00000005
+T0IE                              00000005
+T0IF                              00000002
+T0SE                              00000004
+T1CKPS0                           00000004
+T1CKPS1                           00000005
+T1CON                             00000010
+T1GINV                            00000007
+T1GIV                             00000007
+T1GSS                             00000001
+T1INSYNC                          00000002
+T1OSCEN                           00000003
+T1SYNC                            00000002
+T2CKPS0                           00000000
+T2CKPS1                           00000001
+T2CON                             00000012
+TMR0                              00000001
+TMR0IE                            00000005
+TMR0IF                            00000002
+TMR1                              0000000E
+TMR1CS                            00000001
+TMR1GE                            00000006
+TMR1H                             0000000F
+TMR1IE                            00000000
+TMR1IF                            00000000
+TMR1L                             0000000E
+TMR1ON                            00000000
+TMR2                              00000011
+TMR2IE                            00000001
+TMR2IF                            00000001
+TMR2ON                            00000002
+TOUTPS0                           00000003
+TOUTPS1                           00000004
+MPASM 5.68                           BUS.ASM   10-26-2020  18:42:24         PAGE 19
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+TOUTPS2                           00000005
+TOUTPS3                           00000006
+TRISA                             00000085
+TRISA0                            00000000
+TRISA1                            00000001
+TRISA2                            00000002
+TRISA3                            00000003
+TRISA4                            00000004
+TRISA5                            00000005
+TRISA6                            00000006
+TRISA7                            00000007
+TRISB                             00000086
+TRISB0                            00000000
+TRISB1                            00000001
+TRISB2                            00000002
+TRISB3                            00000003
+TRISB4                            00000004
+TRISB5                            00000005
+TRISB6                            00000006
+TRISB7                            00000007
+TRISC                             00000087
+TRISC0                            00000000
+TRISC1                            00000001
+TRISC2                            00000002
+TRISC3                            00000003
+TRISC4                            00000004
+TRISC5                            00000005
+TRISC6                            00000006
+TRISC7                            00000007
+TRISD                             00000088
+TRISD0                            00000000
+TRISD1                            00000001
+TRISD2                            00000002
+TRISD3                            00000003
+TRISD4                            00000004
+TRISD5                            00000005
+TRISD6                            00000006
+TRISD7                            00000007
+TRISE                             00000089
+TRISE0                            00000000
+TRISE1                            00000001
+TRISE2                            00000002
+TRISE3                            00000003
+TRMT                              00000001
+TUN0                              00000000
+TUN1                              00000001
+TUN2                              00000002
+TUN3                              00000003
+TUN4                              00000004
+TX8_9                             00000006
+TX9                               00000006
+TX9D                              00000000
+TXD8                              00000000
+MPASM 5.68                           BUS.ASM   10-26-2020  18:42:24         PAGE 20
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+TXEN                              00000005
+TXIE                              00000004
+TXIF                              00000004
+TXREG                             00000019
+TXSTA                             00000098
+TX_DATO1                          00000137
+TX_DAT_1                          0000013B
+Tens                              00000026
+UA                                00000001
+ULPWUE                            00000005
+ULPWUIE                           00000002
+ULPWUIF                           00000002
+UMBRAL_ALTO                       0000002F
+UMBRAL_BAJO                       0000002D
+UMBRAL_MEDIO                      0000002E
+UPDATE_BTN_ASC                    00000091
+UPDATE_BTN_DSC                    0000009E
+UPDATE_BTN_ENTRAR                 000000C1
+UPDATE_BTN_SALIR                  000000AB
+Units                             00000027
+VCFG0                             00000004
+VCFG1                             00000005
+VERIFICAR_LIMITES                 00000062
+VR0                               00000000
+VR1                               00000001
+VR2                               00000002
+VR3                               00000003
+VRCON                             00000097
+VREN                              00000007
+VROE                              00000006
+VRR                               00000005
+VRSS                              00000004
+W                                 00000000
+WCOL                              00000007
+WDTCON                            00000105
+WDTPS0                            00000001
+WDTPS1                            00000002
+WDTPS2                            00000003
+WDTPS3                            00000004
+WPUB                              00000095
+WPUB0                             00000000
+WPUB1                             00000001
+WPUB2                             00000002
+WPUB3                             00000003
+WPUB4                             00000004
+WPUB5                             00000005
+WPUB6                             00000006
+WPUB7                             00000007
+WR                                00000001
+WREN                              00000002
+WRERR                             00000003
+WUE                               00000001
+Z                                 00000002
+MPASM 5.68                           BUS.ASM   10-26-2020  18:42:24         PAGE 21
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+_BOR21V                           00003EFF
+_BOR40V                           00003FFF
+_BOR4V_BOR21V                     00003EFF
+_BOR4V_BOR40V                     00003FFF
+_BOREN_NSLEEP                     00003EFF
+_BOREN_OFF                        00003CFF
+_BOREN_ON                         00003FFF
+_BOREN_SBODEN                     00003DFF
+_BOR_NSLEEP                       00003EFF
+_BOR_OFF                          00003CFF
+_BOR_ON                           00003FFF
+_BOR_SBODEN                       00003DFF
+_CONFIG1                          00002007
+_CONFIG2                          00002008
+_CPD_OFF                          00003FFF
+_CPD_ON                           00003F7F
+_CP_OFF                           00003FFF
+_CP_ON                            00003FBF
+_DEBUG_OFF                        00003FFF
+_DEBUG_ON                         00001FFF
+_DEVID1                           00002006
+_EC_OSC                           00003FFB
+_EXTRC                            00003FFF
+_EXTRCIO                          00003FFE
+_EXTRC_OSC_CLKOUT                 00003FFF
+_EXTRC_OSC_NOCLKOUT               00003FFE
+_FCMEN_OFF                        000037FF
+_FCMEN_ON                         00003FFF
+_FOSC_EC                          00003FFB
+_FOSC_EXTRC_CLKOUT                00003FFF
+_FOSC_EXTRC_NOCLKOUT              00003FFE
+_FOSC_HS                          00003FFA
+_FOSC_INTRC_CLKOUT                00003FFD
+_FOSC_INTRC_NOCLKOUT              00003FFC
+_FOSC_LP                          00003FF8
+_FOSC_XT                          00003FF9
+_HS_OSC                           00003FFA
+_IDLOC0                           00002000
+_IDLOC1                           00002001
+_IDLOC2                           00002002
+_IDLOC3                           00002003
+_IESO_OFF                         00003BFF
+_IESO_ON                          00003FFF
+_INTOSC                           00003FFD
+_INTOSCIO                         00003FFC
+_INTRC_OSC_CLKOUT                 00003FFD
+_INTRC_OSC_NOCLKOUT               00003FFC
+_LP_OSC                           00003FF8
+_LVP_OFF                          00002FFF
+_LVP_ON                           00003FFF
+_MCLRE_OFF                        00003FDF
+_MCLRE_ON                         00003FFF
+_PWRTE_OFF                        00003FFF
+MPASM 5.68                           BUS.ASM   10-26-2020  18:42:24         PAGE 22
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+_PWRTE_ON                         00003FEF
+_WDTE_OFF                         00003FF7
+_WDTE_ON                          00003FFF
+_WDT_OFF                          00003FF7
+_WDT_ON                           00003FFF
+_WRT_1FOURTH                      00003BFF
+_WRT_256                          00003DFF
+_WRT_HALF                         000039FF
+_WRT_OFF                          00003FFF
+_XT_OSC                           00003FF9
+__16F887                          00000001
+bin                               00000028
+completeTenCarry                  00000115
+completeUnitCarry                 0000010D
+continue                          00000119
+count8                            00000029
+endBinary2BCD                     0000012C
+flag_counter                      00000000
+flag_counter_inc                  00000001
+inicio_uart                       0000012D
+startconversion                   00000103
+temp                              0000002A
+
+Errors   :     0
+Warnings :     0 reported,     0 suppressed
+Messages :    10 reported,     0 suppressed
+
+
